@@ -7574,6 +7574,20 @@ compreendeu e concorda integralmente com este Termo.</pre
           }
           OS_ITENS = []
         }
+
+        // desativa e altera valor de campo valor_pago
+        // quando ordem está não paga ou totalmente paga
+        const valorTotal = s.total ?? 0
+        let valorPago = s?.valor_pago ?? ""
+        let desativarCampoValorPago = false
+        if (s.status_pagamento === "pago") {
+          valorPago = valorTotal
+        }
+        const estadosPagamentoImutavel = ["pendente", "fiado", "pago"]
+        if (estadosPagamentoImutavel.includes(s.status_pagamento) === true) {
+          desativarCampoValorPago = true
+        }
+
         openModal(
           edit ? `Editar OS #${s.id}` : "Nova Ordem de Serviço",
           `
@@ -7625,7 +7639,7 @@ compreendeu e concorda integralmente com este Termo.</pre
     </div>
     <div class="row-3">
       <div class="field"><label>Pagamento</label>
-        <select id="osStatusPag" onchange="osAtualizarVencimento()">
+        <select id="osStatusPag" onchange="osAtualizarVencimento();osRecalc()">
           <option value="pendente" ${s.status_pagamento === "pendente" ? "selected" : ""}>Pendente</option>
           <option value="pago" ${s.status_pagamento === "pago" ? "selected" : ""}>Pago</option>
           <option value="parcial" ${s.status_pagamento === "parcial" ? "selected" : ""}>Parcial</option>
@@ -7633,7 +7647,15 @@ compreendeu e concorda integralmente com este Termo.</pre
         </select></div>
       <div class="field"><label>Forma</label>
         <select id="osFormaPag">${optionsFormas(s.forma_pagamento, true)}</select></div>
-      <div class="field"><label>Valor pago (R$)</label><input id="osValorPago" type="text" inputmode="decimal" value="${s.valor_pago ? fmtNum(s.valor_pago) : ""}" placeholder="0,00" oninput="moedaInput(this)" onblur="moedaBlur(this)"></div>
+      <div class="field"><label>Valor pago (R$)</label><input id="osValorPago"
+        type="text"
+        inputmode="decimal"
+        value="${fmt(valorPago)}"
+        placeholder="0,00"
+        oninput="moedaInput(this)"
+        onblur="moedaBlur(this)"
+        ${ desativarCampoValorPago === true ? "disabled" : "" }
+      ></div>
     </div>
     <div class="field" id="osVencimentoCampo" style="display:${["pendente", "parcial", "fiado"].includes(s.status_pagamento) ? "" : "none"}">
       <label>Data de vencimento</label>
@@ -7829,7 +7851,42 @@ compreendeu e concorda integralmente com este Termo.</pre
         let subtotal = maoObra
         OS_ITENS.forEach((it) => (subtotal += it.quantidade * it.preco_unit))
         const desconto = osDescontoValor(subtotal)
-        if ($("osTotal")) $("osTotal").value = fmt(subtotal - desconto)
+
+        // protege contra ordens com pagamento pendente e valor pago preenchido
+        const elementoCampoValorPago = document.getElementById("osValorPago") ?? null
+        if (elementoCampoValorPago === null) {
+          throw "elemento do campo valor pago não encontrado"
+        }
+        const valorPagoAtual = parseMoeda(elementoCampoValorPago.value)
+        const elementoCampoEstadoPagamento = document.getElementById("osStatusPag") ?? null
+        if (elementoCampoEstadoPagamento === null) {
+          throw "elemento do campo estado pagamento não encontrado"
+        }
+        const estadoPagamento = elementoCampoEstadoPagamento.value
+
+        // desativa e altera valor de campo valor pago de
+        // acordo com o estado de pagamento
+        const valorTotal = subtotal - desconto
+        const elementoCampoValorTotal = document.getElementById("osTotal") ?? null
+        if (elementoCampoValorTotal === null) {
+          throw "elemento do campo valor total não encontrado"
+        }
+        elementoCampoValorTotal.value = fmt(valorTotal)
+        const estadosPagamentoZero = ["pendente","fiado"]
+        const estadosPagamentoImutavel = ["pendente", "fiado", "pago"]
+        let desativarCampoValorPago = false
+        if (estadoPagamento === "pago") {
+          elementoCampoValorPago.value = fmtNum(valorTotal)
+        }
+        if (estadosPagamentoZero.includes(estadoPagamento) === true &&
+        valorPagoAtual === 0) {
+          elementoCampoValorPago.value = fmt(0)
+        }
+        if (estadosPagamentoImutavel.includes(estadoPagamento) === true) {
+          desativarCampoValorPago = true
+        }
+        elementoCampoValorPago.disabled = desativarCampoValorPago
+
       }
       // Mostra o campo de vencimento so quando a OS nao esta paga integral
       // (pendente/parcial/fiado). Em "pago" nao ha conta a receber.
@@ -7868,8 +7925,24 @@ compreendeu e concorda integralmente com este Termo.</pre
         const subtotal = maoObra + itens.reduce((s, it) => s + it.total, 0)
         const desconto = osDescontoValor(subtotal)
         const total = subtotal - desconto
-        const pago = parseMoeda($("osValorPago").value || 0)
+        let pago = parseMoeda($("osValorPago").value || 0)
+
         let statusPag = $("osStatusPag").value
+        if (statusPag === "pago") {
+          pago = total
+        }
+        if (pago > total) {
+          toast("O valor pago não pode superar o total da OS", "err")
+          return
+        }
+
+        const estadosPagamentoZero = ["pendente","fiado"]
+        if (estadosPagamentoZero.includes(estadoPagamento) === true &&
+        valorPagoAtual > 0) {
+          toast("valor pago deve ser zero quando a ordem não foi paga", "err")
+          return
+        }
+
         if (pago >= total && total > 0 && statusPag === "pendente")
           statusPag = "pago"
         else if (pago > 0 && pago < total && statusPag === "pendente")
