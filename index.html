@@ -7937,7 +7937,7 @@ compreendeu e concorda integralmente com este Termo.</pre
         }
 
         const estadosPagamentoZero = ["pendente","fiado"]
-        if (estadosPagamentoZero.includes(estadoPagamento) === true &&
+        if (estadosPagamentoZero.includes(statusPag) === true &&
         valorPagoAtual > 0) {
           toast("valor pago deve ser zero quando a ordem não foi paga", "err")
           return
