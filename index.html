@@ -7852,12 +7852,6 @@ compreendeu e concorda integralmente com este Termo.</pre
         OS_ITENS.forEach((it) => (subtotal += it.quantidade * it.preco_unit))
         const desconto = osDescontoValor(subtotal)
 
-        // protege contra ordens com pagamento pendente e valor pago preenchido
-        const elementoCampoValorPago = document.getElementById("osValorPago") ?? null
-        if (elementoCampoValorPago === null) {
-          throw "elemento do campo valor pago não encontrado"
-        }
-        const valorPagoAtual = parseMoeda(elementoCampoValorPago.value)
         const elementoCampoEstadoPagamento = document.getElementById("osStatusPag") ?? null
         if (elementoCampoEstadoPagamento === null) {
           throw "elemento do campo estado pagamento não encontrado"
@@ -7874,12 +7868,15 @@ compreendeu e concorda integralmente com este Termo.</pre
         elementoCampoValorTotal.value = fmt(valorTotal)
         const estadosPagamentoZero = ["pendente","fiado"]
         const estadosPagamentoImutavel = ["pendente", "fiado", "pago"]
+        const elementoCampoValorPago = document.getElementById("osValorPago") ?? null
+        if (elementoCampoValorPago === null) {
+          throw "elemento do campo valor pago não encontrado"
+        }
         let desativarCampoValorPago = false
         if (estadoPagamento === "pago") {
           elementoCampoValorPago.value = fmtNum(valorTotal)
         }
-        if (estadosPagamentoZero.includes(estadoPagamento) === true &&
-        valorPagoAtual === 0) {
+        if (estadosPagamentoZero.includes(estadoPagamento) === true) {
           elementoCampoValorPago.value = fmt(0)
         }
         if (estadosPagamentoImutavel.includes(estadoPagamento) === true) {
@@ -7937,6 +7934,12 @@ compreendeu e concorda integralmente com este Termo.</pre
         }
 
         const estadosPagamentoZero = ["pendente","fiado"]
+        const elementoCampoValorPago = document.getElementById("osValorPago") ?? null
+        if (elementoCampoValorPago === null) {
+          throw "elemento do campo valor pago não encontrado"
+        }
+        const valorPagoAtual = parseMoeda(elementoCampoValorPago.value)
+
         if (estadosPagamentoZero.includes(statusPag) === true &&
         valorPagoAtual > 0) {
           toast("valor pago deve ser zero quando a ordem não foi paga", "err")
